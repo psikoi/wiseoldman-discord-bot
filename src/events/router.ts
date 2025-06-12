@@ -1,6 +1,6 @@
-import * as Sentry from '@sentry/node';
 import { Client } from 'discord.js';
 import { Event } from '../utils/events';
+import * as sentry from '../services/sentry';
 import prometheus from '../services/prometheus';
 import CompetitionCreated from './instances/CompetitionCreated';
 import CompetitionEnded from './instances/CompetitionEnded';
@@ -55,7 +55,7 @@ async function onEventReceived(
 
   if (isErrored(executionResult)) {
     console.error('Error executing event', payload, executionResult.error);
-    Sentry.captureException(executionResult.error);
+    sentry.captureError(executionResult.error);
 
     eventMonitor.endTracking(matchingEvent.type, 0);
 

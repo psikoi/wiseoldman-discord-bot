@@ -1,15 +1,8 @@
-import env from './env';
-import * as Sentry from '@sentry/node';
-import '@sentry/tracing';
+import * as sentry from './services/sentry';
 import * as api from './api';
 import bot from './bot';
 import { deployCommands } from './deploy-commands';
 import prometheus from './services/prometheus';
-
-Sentry.init({
-  dsn: env.BOT_SENTRY_DSN,
-  tracesSampleRate: 0.01
-});
 
 (async function () {
   await deployCommands();
@@ -48,12 +41,12 @@ Sentry.init({
 
   process.on('unhandledRejection', reason => {
     console.error('Unhandled Rejection:', reason, true);
-    Sentry.captureException(reason);
+    sentry.captureError(reason);
   });
 
   process.on('uncaughtException', error => {
     console.error('Uncaught Exception:', error, true);
-    Sentry.captureException(error);
+    sentry.captureError(error);
   });
 
   prometheus.init();

@@ -1,6 +1,6 @@
-import * as Sentry from '@sentry/node';
 import { GuildMember, Interaction, EmbedBuilder } from 'discord.js';
 import config from '../config';
+import * as sentry from '../services/sentry';
 import prometheus from '../services/prometheus';
 import {
   BaseCommand,
@@ -127,9 +127,11 @@ export async function onInteractionReceived(interaction: Interaction) {
     commandMonitor.endTracking(fullCommandName, 1, interaction.guildId ?? undefined);
   } catch (error) {
     console.log(error);
-    Sentry.captureException(error);
-    await interaction.followUp({ embeds: [buildErrorEmbed(error)] });
+    sentry.captureError(error);
     commandMonitor.endTracking(fullCommandName, 0, interaction.guildId ?? 'unknown guild id');
+    await interaction.followUp({
+      embeds: [buildErrorEmbed(error)]
+    });
   }
 }
 
