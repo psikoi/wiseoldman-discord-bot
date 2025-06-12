@@ -8,7 +8,7 @@ import {
   PermissionsBitField
 } from 'discord.js';
 import config from '../../../config';
-import { updateBotDefaultChannel, updateNotificationPreferences } from '../../../services/prisma';
+import prisma from '../../../services/prisma';
 import {
   NotificationName,
   NotificationType,
@@ -119,23 +119,83 @@ class ConfigNotificationsCommand extends Command {
         });
     }
 
-    let description = '';
-
     if (notificationType === NotificationType.DEFAULT) {
-      await updateBotDefaultChannel(guildId, channel.id);
-      description = `All group-related notifications will be sent to <#${channel.id}> by default.`;
-    } else if (status === 'disable') {
-      await updateNotificationPreferences(guildId, notificationType, null);
-      description = `"${notificationName}" notifications have now been disabled.`;
-    } else {
-      await updateNotificationPreferences(guildId, notificationType, channel.id);
-      description = `"${notificationName}" notifications will now be sent to <#${channel.id}>`;
+      await prisma.server.upsert({
+        where: {
+          guildId
+        },
+        create: {
+          guildId,
+          botChannelId: channel.id
+        },
+        update: {
+          botChannelId: channel.id
+        }
+      });
+
+      const response = new EmbedBuilder()
+        .setColor(config.visuals.green)
+        .setTitle(`✅ Notification Preferences Updated`)
+        .setDescription(`All group-related notifications will be sent to <#${channel.id}> by default.`);
+
+      await interaction.editReply({
+        embeds: [response]
+      });
+
+      return;
     }
+
+    if (status === 'disable') {
+      await prisma.notificationPreference.upsert({
+        where: {
+          guildId_type: {
+            guildId,
+            type: notificationType
+          }
+        },
+        create: {
+          guildId,
+          type: notificationType,
+          channelId: null
+        },
+        update: {
+          channelId: null
+        }
+      });
+
+      const response = new EmbedBuilder()
+        .setColor(config.visuals.green)
+        .setTitle(`✅ Notification Preferences Updated`)
+        .setDescription(`"${notificationName}" notifications have now been disabled.`);
+
+      await interaction.editReply({
+        embeds: [response]
+      });
+
+      return;
+    }
+
+    await prisma.notificationPreference.upsert({
+      where: {
+        guildId_type: {
+          guildId,
+          type: notificationType
+        }
+      },
+      create: {
+        guildId,
+        type: notificationType,
+        channelId: channel.id
+      },
+      update: {
+        channelId: channel.id
+      }
+    });
 
     const response = new EmbedBuilder()
       .setColor(config.visuals.green)
       .setTitle(`✅ Notification Preferences Updated`)
-      .setDescription(description);
+      .setDescription(`"${notificationName}" notifications will now be sent to <#${channel.id}>`);
 
     await interaction.editReply({ embeds: [response] });
   }

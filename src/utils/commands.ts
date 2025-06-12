@@ -6,7 +6,7 @@ import {
   ChatInputCommandInteraction,
   ApplicationCommandOptionAllowedChannelTypes
 } from 'discord.js';
-import { getServer, getUsername } from '../services/prisma';
+import prisma from '../services/prisma';
 
 const DISCORD_TAG_REGEX = /<@!?(\d+)>/;
 
@@ -195,12 +195,21 @@ export async function getUsernameParam(interaction: ChatInputCommandInteraction)
   const username = interaction.options.getString('username', false);
   const isDiscordId = username?.match(DISCORD_TAG_REGEX);
 
-  if (username !== null && !isDiscordId) return username;
+  if (username !== null && !isDiscordId) {
+    return username;
+  }
 
-  // if it's a discord id, replace the <@> and pass as the alias id
-  const inferredUsername = await getUsername(
-    isDiscordId && username !== null ? username.replace(/[^0-9]/g, '') : interaction.user.id
-  );
+  const alias = await prisma.alias.findFirst({
+    where: {
+      // if it's a discord id, replace the <@> and pass as the alias id
+      userId: isDiscordId && username !== null ? username.replace(/[^0-9]/g, '') : interaction.user.id
+    },
+    select: {
+      username: true
+    }
+  });
+
+  const inferredUsername = alias?.username ?? null;
 
   if (!inferredUsername) {
     throw new CommandError(
@@ -222,7 +231,12 @@ export async function getLinkedGroupId(interaction: ChatInputCommandInteraction)
     throw new CommandError("Couldn't find the origin server for this interaction.");
   }
 
-  const server = await getServer(guildId);
+  const server = await prisma.server.upsert({
+    where: { guildId },
+    create: { guildId },
+    update: {}
+  });
+
   const groupId = server?.groupId || -1;
 
   if (groupId === -1) {

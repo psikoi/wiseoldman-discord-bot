@@ -1,6 +1,6 @@
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import config from '../../../config';
-import { updateServerGroup } from '../../../services/prisma';
+import prisma from '../../../services/prisma';
 import womClient from '../../../services/wiseoldman';
 import { Command, CommandConfig, CommandError } from '../../../utils';
 
@@ -40,8 +40,18 @@ class ConfigGroupCommand extends Command {
       throw new CommandError("Couldn't find that group.");
     });
 
-    // Update the server's group ID in the database
-    await updateServerGroup(guildId, groupId);
+    await prisma.server.upsert({
+      where: {
+        guildId
+      },
+      create: {
+        guildId,
+        groupId
+      },
+      update: {
+        groupId
+      }
+    });
 
     const response = new EmbedBuilder()
       .setColor(config.visuals.green)

@@ -2,7 +2,7 @@ import { GroupDetails } from '@wise-old-man/utils';
 import { ApplicationCommandOptionType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import config from '../../../config';
 import { CUSTOM_COMMANDS } from '../../../commands/custom';
-import prisma, { getServer } from '../../../services/prisma';
+import prisma from '../../../services/prisma';
 import womClient from '../../../services/wiseoldman';
 import {
   Command,
@@ -46,7 +46,11 @@ class HelpCommand extends Command {
       throw new CommandError("Couldn't find the origin server for this interaction.");
     }
 
-    const server = await getServer(interaction.guildId);
+    const server = await prisma.server.upsert({
+      where: { guildId: interaction.guildId },
+      create: { guildId: interaction.guildId },
+      update: {}
+    });
 
     if (!server) {
       throw new CommandError("Couldn't find the origin server for this interaction.");
